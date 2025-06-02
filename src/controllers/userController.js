@@ -1,10 +1,15 @@
 import { StatusCodes } from 'http-status-codes'
 import { pickUser } from '~/utils/formatters'
+import { authenticator } from 'otplib'
+import QRCode from 'qrcode'
 
 // LƯU Ý: Trong ví dụ về xác thực 2 lớp Two-Factor Authentication (2FA) này thì chúng ta sẽ sử dụng nedb-promises để lưu và
 // truy cập dữ liệu từ một file JSON. Coi như các file JSON này là Database của dự án.
 const Datastore = require('nedb-promises')
 const UserDB = Datastore.create('src/database/users.json')
+const TwoFactorSecretKeyDB = Datastore.create('src/database/2fa_secret_keys.json')
+
+const SERVICE_NAME = '2FA - MinhNang'
 
 const login = async (req, res) => {
   try {
@@ -57,8 +62,50 @@ const logout = async (req, res) => {
   }
 }
 
+const get2FA_QRCode = async (req, res) => {
+  try {
+    const user = await UserDB.findOne({ _id: req.params.id })
+    if (!user) {
+      res.status(StatusCodes.NOT_FOUND).json({ message: 'User not found!' })
+      return
+    }
+
+    // Bien luu tru 2fa secret key cua user
+    let twoFactorSecretKeyValue = null
+    // Lay 2fa secret key cua user tu collection 2fa_secret_keys
+    const twoFactorSecretKey = await TwoFactorSecretKeyDB.findOne({ user_id: user._id })
+    if (!twoFactorSecretKey) {
+      // Neu chua co secret key rieng cua user thi tao moi secret key cho user
+      const newTwoFactorSecretKey = await TwoFactorSecretKeyDB.insert({
+        // _id: truong nay se duoc nedb tu dong sinh
+        user_id: user._id,
+        value: authenticator.generateSecret() // generateSecret() la mot ham cua otplib de tao mot random secret key moi, dung chuan
+      })
+      twoFactorSecretKeyValue = newTwoFactorSecretKey.value
+    } else {
+      // Nguoc lai neu user da co secret key roi thi lay ra su dung luon
+      twoFactorSecretKeyValue = twoFactorSecretKey.value
+    }
+
+    // Tao OTP Auth Token
+    const otpAuthToken = authenticator.keyuri(
+      user.username,
+      SERVICE_NAME,
+      twoFactorSecretKeyValue
+    )
+
+    // Tao mot anh QR Code tu OTP Auth Token de gui ve client
+    const QRCodeImageUrl = await QRCode.toDataURL(otpAuthToken)
+
+    res.status(StatusCodes.OK).json({ qrcode: QRCodeImageUrl })
+  } catch (error) {
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error)
+  }
+}
+
 export const userController = {
   login,
   getUser,
-  logout
+  logout,
+  get2FA_QRCode
 }
