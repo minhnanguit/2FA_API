@@ -1,0 +1,57 @@
+name: Deploy Node.js to AWS EC2
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    
+    strategy:
+      matrix:
+        node-version: [20.x]  # Chỉ dùng 1 version ổn định
+        # Sử dụng Node.js 20.x vì ổn định và được support lâu dài
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run tests (optional)
+      run: npm test --if-present
+      
+    - name: Build application
+      run: npm run build --if-present
+      
+    - name: Stop existing application
+      run: |
+        # Tìm và kill process Node.js đang chạy (nếu có)
+        Get-Process -Name "node" -ErrorAction SilentlyContinue | Stop-Process -Force
+        Write-Host "Stopped existing Node.js processes"
+      shell: powershell
+      continue-on-error: true
+      
+    - name: Start application
+      run: |
+        # Khởi động ứng dụng Node.js
+        Start-Process -FilePath "node" -ArgumentList "app.js" -WindowStyle Hidden
+        Write-Host "Started Node.js application"
+      shell: powershell
+      
+    - name: Create environment file
+      run: |
+        echo "NODE_ENV=production" > .env
+        echo "PORT=3000" >> .env
+        echo "${{ secrets.PROD_ENV_FILE }}" >> .env
+      shell: powershell
