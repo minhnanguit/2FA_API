@@ -22,28 +22,28 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+        cache: 'yarn'  # Thay cache từ 'npm' sang 'yarn'
         
-    - name: Verify package-lock.json
+    - name: Verify yarn.lock
       run: |
-        if (!(Test-Path package-lock.json)) {
-          npm install
-          npm install --package-lock-only
+        if (!(Test-Path yarn.lock)) {
+          yarn install
+          yarn install --mode=update-lockfile
         }
       shell: powershell
       
     - name: Install dependencies
-      run: npm ci
+      run: yarn install
       
     - name: Run tests (optional)
-      run: npm test --if-present
+      run: yarn test --if-present
       
     - name: Build application
-      run: npm run build --if-present
+      run: yarn build --if-present
+      shell: powershell
       
     - name: Stop existing application
       run: |
-        # Tìm và kill process Node.js đang chạy (nếu có)
         Get-Process -Name "node" -ErrorAction SilentlyContinue | Stop-Process -Force
         Write-Host "Stopped existing Node.js processes"
       shell: powershell
@@ -51,7 +51,6 @@ jobs:
       
     - name: Start application
       run: |
-        # Khởi động ứng dụng Node.js
         Start-Process -FilePath "node" -ArgumentList "app.js" -WindowStyle Hidden
         Write-Host "Started Node.js application"
       shell: powershell
