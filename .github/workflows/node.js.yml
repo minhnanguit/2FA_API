@@ -22,8 +22,12 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'yarn'  # Thay cache từ 'npm' sang 'yarn'
+        cache: 'yarn'  # Sử dụng cache của Yarn
         
+    - name: Install Yarn
+      run: npm install -g yarn
+      shell: powershell
+      
     - name: Verify yarn.lock
       run: |
         if (!(Test-Path yarn.lock)) {
