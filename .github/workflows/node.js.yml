@@ -12,8 +12,7 @@ jobs:
     
     strategy:
       matrix:
-        node-version: [20.x]  # Chỉ dùng 1 version ổn định
-        # Sử dụng Node.js 20.x vì ổn định và được support lâu dài
+        node-version: [20.x]  # Sử dụng Node.js 20.x vì ổn định và được support lâu dài
     
     steps:
     - name: Checkout code
@@ -25,6 +24,14 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
         
+    - name: Verify package-lock.json
+      run: |
+        if (!(Test-Path package-lock.json)) {
+          npm install
+          npm install --package-lock-only
+        }
+      shell: powershell
+      
     - name: Install dependencies
       run: npm ci
       
